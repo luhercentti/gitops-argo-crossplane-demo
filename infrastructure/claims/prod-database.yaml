@@ -1,0 +1,17 @@
+---
+# Production Database Claim
+apiVersion: custom.crossplane.io/v1alpha1
+kind: Database
+metadata:
+  name: prod-database
+  namespace: prod
+spec:
+  parameters:
+    size: large
+    environment: prod
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      type: rds
+  writeConnectionSecretToRef:
+    name: prod-database-connection

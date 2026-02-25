@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+---
+# This is a placeholder for the ArgoCD installation
+# In production, you would either:
+# 1. Use the ArgoCD Helm chart managed by ArgoCD itself (App of Apps pattern)
+# 2. Use the installation script: ./setup/install-argocd.sh
+# 3. Apply the official manifests directly
+
+# For this demo, we use the installation script to bootstrap ArgoCD
+# Once ArgoCD is running, it can manage its own configuration via GitOps

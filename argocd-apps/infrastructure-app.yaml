@@ -1,0 +1,39 @@
+---
+# ArgoCD Application for Infrastructure (Crossplane Resources)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infrastructure
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/gitops-argo-crossplane-demo.git
+    targetRevision: HEAD
+    path: infrastructure
+    directory:
+      recurse: true
+      exclude: '*.md'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: "*"
+      kind: Secret
+      jsonPointers:
+        - /data

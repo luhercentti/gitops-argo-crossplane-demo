@@ -1,0 +1,36 @@
+# Sensitive files
+.env
+*.key
+*.pem
+credentials.txt
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+
+# Kubernetes secrets (should use sealed-secrets instead)
+*-secret.yaml
+secrets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build outputs
+dist/
+build/
+out/

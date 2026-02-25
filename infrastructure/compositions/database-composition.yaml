@@ -1,0 +1,202 @@
+---
+# Composite Resource Definition for a Database
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xdatabases.custom.crossplane.io
+spec:
+  group: custom.crossplane.io
+  names:
+    kind: XDatabase
+    plural: xdatabases
+  claimNames:
+    kind: Database
+    plural: databases
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    size:
+                      type: string
+                      description: Database size (small, medium, large)
+                      enum:
+                        - small
+                        - medium
+                        - large
+                    environment:
+                      type: string
+                      description: Environment (dev, staging, prod)
+                      enum:
+                        - dev
+                        - staging
+                        - prod
+                  required:
+                    - size
+                    - environment
+              required:
+                - parameters
+            status:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                  description: Database connection endpoint
+                port:
+                  type: integer
+                  description: Database port
+---
+# Composition for Database using RDS
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: database-aws-rds
+  labels:
+    provider: aws
+    type: rds
+spec:
+  compositeTypeRef:
+    apiVersion: custom.crossplane.io/v1alpha1
+    kind: XDatabase
+  
+  resources:
+    # VPC Security Group for RDS
+    - name: rds-security-group
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            description: Security group for RDS database
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-rds-sg"
+    
+    # Security Group Rule - Allow PostgreSQL
+    - name: rds-sg-rule
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroupRule
+        spec:
+          forProvider:
+            type: ingress
+            fromPort: 5432
+            toPort: 5432
+            protocol: tcp
+            cidrBlocks:
+              - 0.0.0.0/0
+            region: us-east-1
+            securityGroupIdSelector:
+              matchControllerRef: true
+    
+    # RDS DB Subnet Group
+    - name: rds-subnet-group
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: SubnetGroup
+        spec:
+          forProvider:
+            description: Subnet group for RDS
+            region: us-east-1
+            subnetIdRefs:
+              - name: subnet-1
+              - name: subnet-2
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-subnet-group"
+    
+    # RDS Instance
+    - name: rds-instance
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            region: us-east-1
+            engine: postgres
+            engineVersion: "15.4"
+            username: dbadmin
+            autoGeneratePassword: true
+            passwordSecretRef:
+              namespace: crossplane-system
+              key: password
+            dbSubnetGroupNameSelector:
+              matchControllerRef: true
+            vpcSecurityGroupIdSelector:
+              matchControllerRef: true
+            publiclyAccessible: false
+            skipFinalSnapshot: true
+            storageEncrypted: true
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+      patches:
+        # Map size to instance class
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.size
+          toFieldPath: spec.forProvider.instanceClass
+          transforms:
+            - type: map
+              map:
+                small: db.t3.micro
+                medium: db.t3.small
+                large: db.t3.medium
+        
+        # Map size to allocated storage
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.size
+          toFieldPath: spec.forProvider.allocatedStorage
+          transforms:
+            - type: map
+              map:
+                small: 20
+                medium: 50
+                large: 100
+        
+        # Set connection secret name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.writeConnectionSecretToRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-rds-conn"
+        
+        # Set password secret name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.passwordSecretRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-password"
+        
+        # Patch endpoint to status
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.endpoint
+          toFieldPath: status.endpoint
+        
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.port
+          toFieldPath: status.port

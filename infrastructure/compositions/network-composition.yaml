@@ -1,0 +1,175 @@
+---
+# Composite Resource Definition for Network
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xnetworks.custom.crossplane.io
+spec:
+  group: custom.crossplane.io
+  names:
+    kind: XNetwork
+    plural: xnetworks
+  claimNames:
+    kind: Network
+    plural: networks
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    cidr:
+                      type: string
+                      description: VPC CIDR block
+                      default: "10.0.0.0/16"
+                    region:
+                      type: string
+                      description: AWS region
+                      default: "us-east-1"
+              required:
+                - parameters
+            status:
+              type: object
+              properties:
+                vpcId:
+                  type: string
+                  description: VPC ID
+---
+# Composition for Network using VPC
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: network-aws-vpc
+  labels:
+    provider: aws
+    type: vpc
+spec:
+  compositeTypeRef:
+    apiVersion: custom.crossplane.io/v1alpha1
+    kind: XNetwork
+  
+  resources:
+    # VPC
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            enableDnsHostnames: true
+            enableDnsSupport: true
+            tags:
+              Name: crossplane-vpc
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+        
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.cidr
+          toFieldPath: spec.forProvider.cidrBlock
+        
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.id
+          toFieldPath: status.vpcId
+    
+    # Internet Gateway
+    - name: internet-gateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+    
+    # Public Subnet 1
+    - name: subnet-public-1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            type: public
+            zone: a
+        spec:
+          forProvider:
+            availabilityZone: us-east-1a
+            cidrBlock: 10.0.1.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              Name: public-subnet-1
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+    
+    # Public Subnet 2
+    - name: subnet-public-2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            type: public
+            zone: b
+        spec:
+          forProvider:
+            availabilityZone: us-east-1b
+            cidrBlock: 10.0.2.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              Name: public-subnet-2
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+    
+    # Route Table
+    - name: route-table
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              Name: public-route-table
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+    
+    # Route to Internet Gateway
+    - name: route-internet
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Route
+        spec:
+          forProvider:
+            destinationCidrBlock: 0.0.0.0/0
+            gatewayIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region

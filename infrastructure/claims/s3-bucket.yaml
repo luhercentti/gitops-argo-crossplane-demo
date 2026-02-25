@@ -1,0 +1,48 @@
+---
+# S3 Bucket for application storage
+apiVersion: s3.aws.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: demo-app-storage
+  annotations:
+    crossplane.io/external-name: gitops-demo-app-storage-${RANDOM_SUFFIX}
+spec:
+  forProvider:
+    region: us-east-1
+    tags:
+      Environment: dev
+      ManagedBy: crossplane
+      Purpose: demo
+  providerConfigRef:
+    name: default
+---
+# S3 Bucket Versioning
+apiVersion: s3.aws.upbound.io/v1beta1
+kind: BucketVersioning
+metadata:
+  name: demo-app-storage-versioning
+spec:
+  forProvider:
+    region: us-east-1
+    bucketRef:
+      name: demo-app-storage
+    versioningConfiguration:
+      - status: Enabled
+  providerConfigRef:
+    name: default
+---
+# S3 Bucket Encryption
+apiVersion: s3.aws.upbound.io/v1beta1
+kind: BucketServerSideEncryptionConfiguration
+metadata:
+  name: demo-app-storage-encryption
+spec:
+  forProvider:
+    region: us-east-1
+    bucketRef:
+      name: demo-app-storage
+    rule:
+      - applyServerSideEncryptionByDefault:
+          - sseAlgorithm: AES256
+  providerConfigRef:
+    name: default

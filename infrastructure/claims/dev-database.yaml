@@ -1,0 +1,17 @@
+---
+# Development Database Claim
+apiVersion: custom.crossplane.io/v1alpha1
+kind: Database
+metadata:
+  name: dev-database
+  namespace: dev
+spec:
+  parameters:
+    size: small
+    environment: dev
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      type: rds
+  writeConnectionSecretToRef:
+    name: dev-database-connection

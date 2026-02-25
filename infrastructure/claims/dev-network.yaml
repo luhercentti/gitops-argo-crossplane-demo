@@ -1,0 +1,15 @@
+---
+# Development Network
+apiVersion: custom.crossplane.io/v1alpha1
+kind: Network
+metadata:
+  name: dev-network
+  namespace: dev
+spec:
+  parameters:
+    cidr: "10.0.0.0/16"
+    region: "us-east-1"
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      type: vpc
