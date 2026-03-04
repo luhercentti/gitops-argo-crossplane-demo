@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/gitops-argo-crossplane-demo.git
+    repoURL: https://github.com/luhercentti/gitops-argo-crossplane-demo.git
     targetRevision: HEAD
     path: argocd-apps
   destination:

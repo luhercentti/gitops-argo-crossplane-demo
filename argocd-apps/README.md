@@ -58,7 +58,7 @@ Applications are organized into ArgoCD projects:
 
 ## Important Notes
 
-1. **Update Repository URL**: Change `YOUR_USERNAME` in the repoURL to your actual GitHub username
+1. **Update Repository URL**: Change `luhercentti` in the repoURL to your actual GitHub username
 2. **Secrets**: Database connection secrets are created by Crossplane
 3. **Dependencies**: Infrastructure should be deployed before applications
 4. **Sync Order**: ArgoCD will manage sync order automatically

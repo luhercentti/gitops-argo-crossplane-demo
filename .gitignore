@@ -34,3 +34,4 @@ temp/
 dist/
 build/
 out/
+.old_docs/

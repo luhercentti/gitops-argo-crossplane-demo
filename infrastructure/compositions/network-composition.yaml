@@ -56,6 +56,7 @@ spec:
     apiVersion: custom.crossplane.io/v1alpha1
     kind: XNetwork
   
+  mode: Resources
   resources:
     # VPC
     - name: vpc

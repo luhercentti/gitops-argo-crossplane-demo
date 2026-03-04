@@ -68,6 +68,7 @@ spec:
     apiVersion: custom.crossplane.io/v1alpha1
     kind: XDatabase
   
+  mode: Resources
   resources:
     # VPC Security Group for RDS
     - name: rds-security-group
